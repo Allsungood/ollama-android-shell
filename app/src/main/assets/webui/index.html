@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ollama Deck</title>
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#10141c; --panel2:#151a25; --line:#232b3a;
+    --ink:#e8ecf4; --dim:#94a0b8; --faint:#5a657d;
+    --acc:#38d9a9; --acc-deep:#0f8a68; --amber:#ffb454; --danger:#ff6b6b;
+    --mono:"SF Mono",ui-monospace,"Cascadia Code","JetBrains Mono",monospace;
+    --sans:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+    --r:14px; --shadow:0 18px 50px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:radial-gradient(1200px 600px at 80% -10%, #0f3d30 0%, transparent 55%), var(--bg);color:var(--ink);font-family:var(--sans);min-height:100%}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(#fff1 1px,transparent 1px),linear-gradient(90deg,#fff1 1px,transparent 1px);
+    background-size:34px 34px; mask-image:radial-gradient(circle at 50% 20%, #000 0%, transparent 70%)}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;
+    background:repeating-linear-gradient(0deg,transparent 0 2px,#000 2px 4px)}
+  .wrap{max-width:880px;margin:0 auto;padding:clamp(18px,5vw,40px);position:relative;z-index:1}
+
+  /* Header */
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:8px;
+    animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+  .brand{display:flex;align-items:center;gap:14px}
+  .mark{width:46px;height:46px;border-radius:13px;flex:0 0 auto;
+    background:linear-gradient(150deg,#1bd6a0,#0f8a68 70%);box-shadow:0 8px 24px rgba(27,214,160,.35);
+    display:grid;place-items:center;position:relative;overflow:hidden}
+  .mark svg{width:26px;height:26px}
+  .mark::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 3px,#0003 3px 6px)}
+  h1{font-size:clamp(22px,4vw,30px);letter-spacing:.04em;margin:0;font-weight:800}
+  h1 small{display:block;font-size:11px;letter-spacing:.34em;color:var(--acc);font-family:var(--mono);font-weight:600;margin-top:3px}
+  .stat{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right;line-height:1.7}
+  .stat b{color:var(--ink);font-size:15px}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dim);margin-right:6px}
+  .dot.on{background:var(--acc);box-shadow:0 0 10px var(--acc)}
+
+  /* Panels */
+  .panel{background:linear-gradient(180deg,var(--panel),#0c0f15);border:1px solid var(--line);border-radius:var(--r);
+    padding:18px;margin-top:14px;box-shadow:var(--shadow);animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+  .panel h2{font-size:12px;letter-spacing:.26em;color:var(--faint);text-transform:uppercase;margin:0 0 14px;
+    display:flex;align-items:center;gap:10px}
+  .panel h2::after{content:"";flex:1;height:1px;background:var(--line)}
+  .grid{display:grid;gap:14px;grid-template-columns:1fr}
+  @media(min-width:600px){.grid{grid-template-columns:1fr 1fr}}
+  .field{display:flex;flex-direction:column;gap:9px}
+  .field>label{font-size:12px;color:var(--dim);letter-spacing:.06em}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{cursor:pointer;padding:8px 13px;border:1px solid var(--line);border-radius:999px;font-size:13px;color:var(--dim);
+    background:var(--panel2);transition:.18s;display:flex;align-items:center;gap:7px;font-family:var(--mono)}
+  .chip small{opacity:.65;font-size:10px}
+  .chip.active{border-color:var(--acc);color:var(--acc);background:rgba(56,217,169,.08);box-shadow:0 0 0 1px var(--acc) inset}
+  .chip.active::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc)}
+
+  /* Search bar */
+  .search{display:flex;gap:10px}
+  .search input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;color:var(--ink);
+    padding:13px 15px;font-size:15px;font-family:var(--mono);outline:none;transition:.18s}
+  .search input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(56,217,169,.15)}
+  .search button{background:var(--acc-deep);border:0;border-radius:12px;color:#042019;font-weight:800;padding:0 18px;cursor:pointer;font-family:var(--mono)}
+
+  /* Model list */
+  .modellist{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+  .model{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:.18s}
+  .model:hover{border-color:var(--acc-deep);transform:translateX(3px)}
+  .model .ic{width:34px;height:34px;border-radius:9px;flex:0 0 auto;display:grid;place-items:center;background:linear-gradient(145deg,#1a2230,#11151d);font-family:var(--mono);color:var(--acc);font-size:12px}
+  .model .meta{flex:1;min-width:0}
+  .model .nm{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .model .sz{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .model .tags{font-family:var(--mono);font-size:10px;color:var(--amber);margin-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .model .act button{border:1px solid var(--line);background:transparent;color:var(--dim);border-radius:9px;padding:7px 12px;cursor:pointer;font-family:var(--mono);font-size:12px;transition:.18s}
+  .model .act button.go{color:var(--acc);border-color:var(--acc-deep)}
+  .model .act button.go:hover{background:var(--acc-deep);color:#042019}
+  .model .act button.del:hover{color:var(--danger);border-color:var(--danger)}
+
+  .empty{padding:26px;text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;letter-spacing:.1em}
+
+  .btn-hero{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;border:0;border-radius:14px;
+    font-size:16px;font-weight:800;cursor:pointer;background:linear-gradient(100deg,#1bd6a0,#0f8a68);color:#042019;
+    box-shadow:0 10px 30px rgba(27,214,160,.35);transition:.2s;font-family:var(--mono)}
+  .btn-hero:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn-hero:active{transform:translateY(1px)}
+  .btn-hero[disabled]{background:var(--panel2);color:var(--faint);box-shadow:none;cursor:not-allowed}
+
+  .progress{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:12px}
+  .progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--amber));border-radius:6px;transition:width .3s}
+  .muted{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:8px;line-height:1.6;word-break:break-all}
+  .err{color:var(--danger);font-family:var(--mono);font-size:12px;margin-top:8px}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;
+    background:var(--panel2);border:1px solid var(--acc-deep);color:var(--ink);padding:12px 18px;border-radius:12px;
+    font-size:13px;transition:.3s;box-shadow:var(--shadow);z-index:9;font-family:var(--mono)}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<script src="deck-logic.js"></script>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none"><path stroke="#062219" stroke-width="2.4" stroke-linecap="round" d="M7 6c1-3 5-4 7-2 2 2 1 5-1 6l-3 8"/><circle cx="6" cy="19" r="2.4" fill="#062219"/></svg></div>
+      <h1>Ollama Deck<small>ENGINE CONSOLE</small></h1>
+    </div>
+    <div class="stat" id="stats">
+      <div><span class="dot" id="dotEngine">●</span>ENGINE <b id="vEngine">–</b></div>
+      <div><span class="dot" id="dotUi">●</span>WEB UI <b id="vUi">–</b></div>
+      <div id="bridgeVer"></div>
+    </div>
+  </header>
+
+  <section class="panel" id="bootPanel" style="display:none">
+    <h2>初次部署</h2>
+    <div class="search">
+      <button class="btn-hero" id="btnBootstrap" style="padding:14px">开始一键部署 Termux · Ollama · Open WebUI</button>
+    </div>
+    <div class="progress" id="bootProgress"><i></i></div>
+    <div class="muted" id="bootMsg">将自动配置 Termux 系统环境、Ollama 引擎与 Open WebUI 网页界面。</div>
+    <div class="err" id="bootErr"></div>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>语言 Language</h2>
+      <div class="field">
+        <div class="chips" id="langChips"></div>
+        <div class="muted">界面 / 终端 locale 语言</div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>镜像源 Mirrors</h2>
+      <div class="field">
+        <div class="chips" id="mirrorChips"></div>
+        <div class="muted">Ollama / 模型下载分发渠道</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>模型仓库 Model Hub</h2>
+    <div class="search">
+      <input id="q" placeholder="搜索已安装模型，如 qwen / llama / gemma …" autocomplete="off">
+      <button id="btnSearch">搜索</button>
+    </div>
+    <div class="modellist" id="modellist"></div>
+    <div class="muted">已安装模型来自本地 Ollama（127.0.0.1:11434）。图形化搜索/部署：在下方选择推荐模型拉取，或在本页搜索过滤。真正的多模型对话入口在 Open WebUI。</div>
+    <div class="chips" style="margin-top:14px" id="recList"></div>
+  </section>
+
+  <section class="panel">
+    <h2>网页界面 Web UI</h2>
+    <button class="btn-hero" id="btnOpenUi" disabled>打开 Open WebUI 对话界面 →</button>
+    <div class="muted" id="uiHint">Open WebUI 提供完整的图形化模型对话/部署页面（搜索、拉取、聊天）。</div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const B = window.androidBridge;
+  const OLLAMA = (B && B.ollamaBase) ? B.ollamaBase() : 'http://127.0.0.1:11434';
+  const RECO = [['qwen2.5','7b'],['llama3.2','3b'],['gemma3','4b'],['deepseek-r1','1.5b'],['mistral','7b'],['phi3','mini']];
+  let langs=[], mirrors=[];
+
+  const $ = id => document.getElementById(id);
+  const toast = m => { const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); };
+  const fmt = n => n>1e9?(n/1e9).toFixed(1)+'G':n>1e6?(n/1e6).toFixed(0)+'M':n+'B';
+
+  // detect graduation: version() present => engine page; load paths
+  if (B && B.version) $('bridgeVer').textContent = 'bridge v' + B.version();
+
+  function chips(sel, items, activeKey, fn){
+    $(sel).innerHTML=''; items.forEach(it=>{
+      const key = it.id || it.code; // languages use `code`, mirrors use `id`
+      const el=document.createElement('div');
+      el.className='chip'+(key===activeKey?' active':'');
+      const url = it.url || ''; // only mirrors carry a url
+      el.innerHTML='<span>'+it.label+'</span>'+(url?'<small>'+url+'</small>':'');
+      el.onclick=()=>fn(key);
+      $(sel).appendChild(el);
+    });
+  }
+  function setLang(id){ if(B&&B.setLanguage)B.setLanguage(id); localStorage.setItem('lang',id); toast('已切换语言 → '+id); }
+  function setMirror(id){ if(B&&B.setMirror)B.setMirror(id); localStorage.setItem('mirror',id); toast('已切换镜像源 → '+id); }
+
+  function renderModels(list){
+    const box=$('modellist');
+    if(!list||!list.length){ box.innerHTML='<div class="empty">∅ 未找到模型（可先拉取一个或多个）</div>'; return; }
+    box.innerHTML=''; list.forEach(m=>{
+      const row=document.createElement('div'); row.className='model';
+      row.innerHTML='<div class="ic">OL&nbsp;'+(m.name.match(/(?:^|\/)([\w.\-]+):/)?.[1]||m.name).slice(0,6).toUpperCase()+'</div>'+
+        '<div class="meta"><div class="nm">'+m.name+'</div><div class="sz">'+fmt(m.size||0)+'</div></div>'+
+        '<div class="act"><button class="del" data-n="'+m.name+'">删除</button></div>';
+      box.appendChild(row);
+      row.querySelector('.del').onclick=()=>removeModel(m.name);
+    });
+  }
+
+  async function loadModels(q){
+    if (B&&B.modelSearchLocal){ renderModelsFromBridge(B.modelSearchLocal(q||'')); return; }
+    try{
+      const r=await fetch(OLLAMA+'/api/tags'); const j=await r.json();
+      const list=(j.models||[]).map(x=>x).filter(x=>!q||x.name.toLowerCase().includes(q.toLowerCase()));
+      renderModels(list);
+    }catch(e){ renderModels([]); }
+  }
+  function renderModelsFromBridge(json){
+    try{ const o=JSON.parse(json); renderModels(Array.isArray(o.models)?o.models:[]); }
+    catch(e){ renderModels([]); }
+  }
+
+  async function pullModel(model){
+    toast('拉取模型 '+model+'…');
+    try{ const r=await fetch(OLLAMA+'/api/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:model,stream:false})});
+      (r.ok)?toast('模型 '+model+' 拉取完成 ✓'):toast('拉取失败：'+(await r.text()).slice(0,120));
+      loadModels(); }catch(e){ toast('无法连接本地 Ollama'); }
+  }
+  async function removeModel(n){ await fetch(OLLAMA+'/api/delete',{method:'DELETE',body:JSON.stringify({name:n})}).catch(()=>{}); toast('已删除 '+n); loadModels(); }
+
+  function renderRec(){
+    const box=$('recList'); box.innerHTML=''; RECO.forEach(([m,t])=>{
+      const c=document.createElement('div'); c.className='chip'; c.textContent=m+':'+t;
+      c.onclick=()=>pullModel(m+':'+t); box.appendChild(c);
+    });
+  }
+
+  async function refreshProbe(){
+    if(B&&B.checkEngine){ const e=JSON.parse(B.checkEngine());
+      $('dotEngine').className='dot'+(e.running?' on':''); $('vEngine').textContent=e.running?(e.version||'online'):'OFF'; }
+    if(B&&B.checkUi){ const u=JSON.parse(B.checkUi());
+      $('dotUi').className='dot'+(u.running?' on':''); $('vUi').textContent=u.running?'在线':'OFF';
+      $('btnOpenUi').disabled=!u.running; }
+  }
+
+  function initBoot(){
+    if(B&&B.bootstrapStatus){
+      const st=JSON.parse(B.bootstrapStatus());
+      if(st.done){ $('bootPanel').style.display='none'; return; }
+      $('bootPanel').style.display='block';
+      $('btnBootstrap').onclick=()=>{ B.startBootstrap(); toast('开始一键部署…'); tickBoot(); };
+    }
+  }
+  let bootTick=null;
+  function tickBoot(){
+    if(bootTick) clearInterval(bootTick);
+    bootTick=setInterval(()=>{
+      const st=JSON.parse(B.bootstrapStatus());
+      $('bootMsg').textContent=st.progress||'部署中…';
+      if(st.error)$('bootErr').textContent='错误：'+st.error;
+      if(st.done){ clearInterval(bootTick); $('bootPanel').style.display='none'; refreshProbe(); }
+    },800);
+  }
+  window.__deck={ onProgress:(o)=>{ $('bootMsg').textContent=o.progress||''; const w=$('bootProgress').firstChild; w.style.width='60%'; } };
+
+  async function init(){
+    if(!B){ toast('未检测到原生桥（请在 App 内打开）'); }
+    if(B){ try{ langs=JSON.parse(B.getLanguages()); }catch(e){} try{ mirrors=JSON.parse(B.getMirrors()); }catch(e){} }
+    if(!langs.length) langs=[{id:'zh-Hans',label:'简体中文'},{id:'en',label:'English'},{id:'ja',label:'日本語'}];
+    if(!mirrors.length) mirrors=[{id:'auto',label:'自动'},{id:'official',label:'官方'},{id:'modelscope',label:'魔搭'}];
+    const curLang=(B&&B.getLanguage)?B.getLanguage():localStorage.getItem('lang')||'zh-Hans';
+    const curMirror=(B&&B.getMirror)?B.getMirror():localStorage.getItem('mirror')||'auto';
+    chips('langChips',langs,curLang,setLang);
+    chips('mirrorChips',mirrors,curMirror,setMirror);
+    $('btnSearch').onclick=()=>loadModels($('q').value);
+    $('q').addEventListener('input',()=>loadModels($('q').value));
+    renderRec(); loadModels(''); refreshProbe(); initBoot();
+    $('btnOpenUi').onclick=()=>{ if(B&&B.openwebuiUrl) window.location.href=B.openwebuiUrl(); else window.open(OLLAMA,'_self'); };
+  }
+  init();
+  setInterval(refreshProbe,5000);
+</script>
+</body>
+</html>
