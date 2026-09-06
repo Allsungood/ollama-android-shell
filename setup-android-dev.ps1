@@ -32,6 +32,13 @@ if (-not $curlCmd) { Write-Warn "未找到 curl，将使用 Invoke-WebRequest �
 Write-Step "1/5 安装 JDK 17 (Eclipse Temurin)"
 $jdkInstallPath = "${env:ProgramFiles}\Eclipse Adoptium"
 $foundJdk = Get-ChildItem "$jdkInstallPath\jdk-17.0.*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+# 同时检查 C:\Program Files\Java\（Oracle/标准安装路径）
+if (-not $foundJdk) {
+    $foundJdk = Get-ChildItem "C:\Program Files\Java\jdk-17.*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+if (-not $foundJdk) {
+    $foundJdk = Get-ChildItem "C:\Program Files\Java\" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^jdk-' } | Sort-Object Name -Descending | Select-Object -First 1
+}
 
 if ($foundJdk) {
     Write-Ok "JDK 17 已存在：$($foundJdk.FullName)"
