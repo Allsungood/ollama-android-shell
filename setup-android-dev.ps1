@@ -56,14 +56,14 @@ if ($foundJdk) {
             if ($foundJdk) { Write-Ok "choco 安装 JDK 17 成功" }
         }
     }
-    # 手动下载（优先 curl，失败则用 Invoke-WebRequest）
+    # 手动下载（优先 curl -k，失败则用 Invoke-WebRequest）
     if (-not $foundJdk) {
         Write-Host "  手动下载安装 JDK 17 …" -ForegroundColor Yellow
         $jdkZip = "$env:TEMP\temurin-jdk17.zip"
         $jdkUrl = "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse?project=jdk"
         try {
+            # 先尝试 curl（加 --insecure 绕过证书吊销检查）
             if ($curlCmd) {
-                # 先尝试 curl，加 --insecure 绕过证书吊销检查
                 curl -L -k -f -o $jdkZip $jdkUrl --progress-bar 2>&1 | Out-Null
                 if (-not (Test-Path $jdkZip)) { throw "curl failed" }
             } else {
@@ -77,6 +77,7 @@ if ($foundJdk) {
                 Write-Err "JDK 17 下载失败：$($_.Exception.Message)`n请手动下载：https://adoptium.net/temurin/releases/"
             }
         }
+        try {
             Write-Host "  下载完成，解压中 …" -NoNewline
             $jdkExtract = "$env:TEMP\temurin-jdk17"
             if (Test-Path $jdkExtract) { Remove-Item $jdkExtract -Recurse -Force }
@@ -91,6 +92,7 @@ if ($foundJdk) {
             }
             Remove-Item $jdkZip -Force -ErrorAction SilentlyContinue
             Remove-Item $jdkExtract -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host " 完成" -ForegroundColor Green
             if ($foundJdk) { Write-Ok "JDK 17 手动安装成功：$($foundJdk.FullName)" }
         } catch {
             Write-Err "JDK 17 安装失败：$($_.Exception.Message)`n请手动下载：https://adoptium.net/temurin/releases/"
@@ -119,7 +121,8 @@ if (-not (Test-Path "$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat")) {
     if (-not (Test-Path $cmdlineZip)) {
         Write-Host "  下载 commandlinetools-win.zip（约 150MB）…" -NoNewline
         if ($curlCmd) {
-            curl -L -f -o $cmdlineZip $cmdlineUrl --progress-bar
+            curl -L -k -f -o $cmdlineZip $cmdlineUrl --progress-bar 2>&1 | Out-Null
+            if (-not (Test-Path $cmdlineZip)) { throw "curl failed" }
         } else {
             Invoke-WebRequest -Uri $cmdlineUrl -OutFile $cmdlineZip -UseBasicParsing
         }

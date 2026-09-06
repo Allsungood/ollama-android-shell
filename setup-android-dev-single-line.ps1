@@ -1,8 +1,8 @@
 # ============================================================
-#  Ollama Deck — 终极一键环境配置（PowerShell 单行版，支持 winget/choco/手动）
+#  Ollama Deck — 终极环境配置（PowerShell 单行版，支持 winget/choco/手动）
 #  复制整段到管理员 PowerShell，回车即可
 #  前置：Windows 10 1809+ / Windows 11，Node.js 18+，curl
-#  无需 winget；Chocolatey 可选，均无则手动下载
+#  无需 winget； Chocolatey 可选，均无则手动下载
 # ============================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $env:PYTHONIOENCODING = 'utf-8';
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw "请以管理员身份运行 PowerShell" }
@@ -23,11 +23,13 @@ if (-not $foundJdk) {
             Write-Host "  curl 失败，切换 PowerShell 下载 …" -ForegroundColor Yellow
             try { Invoke-WebRequest -Uri "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse?project=jdk" -OutFile $jdkZip -UseBasicParsing } catch { throw "JDK 17 下载失败: $($_.Exception.Message)" }
         }
-        $jdkExt = "$env:TEMP\temurin-jdk17-ext"; Expand-Archive -Path $jdkZip -DestinationPath $jdkExt -Force
-        $extJdk = Get-ChildItem "$jdkExt\*" -Directory | Select-Object -First 1
-        if ($extJdk) { $dest = Join-Path $jdkPath $extJdk.Name; if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }; Move-Item $extJdk.FullName $dest -Force; $foundJdk = Get-Item $dest }
-        Remove-Item $jdkZip -Force -ErrorAction SilentlyContinue; Remove-Item $jdkExt -Recurse -Force -ErrorAction SilentlyContinue
-        if ($foundJdk) { Write-Host "    [OK] JDK 17 手动安装成功" -ForegroundColor Green }
+        try {
+            $jdkExt = "$env:TEMP\temurin-jdk17-ext"; Expand-Archive -Path $jdkZip -DestinationPath $jdkExt -Force
+            $extJdk = Get-ChildItem "$jdkExt\*" -Directory | Select-Object -First 1
+            if ($extJdk) { $dest = Join-Path $jdkPath $extJdk.Name; if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }; Move-Item $extJdk.FullName $dest -Force; $foundJdk = Get-Item $dest }
+            Remove-Item $jdkZip -Force -ErrorAction SilentlyContinue; Remove-Item $jdkExt -Recurse -Force -ErrorAction SilentlyContinue
+            if ($foundJdk) { Write-Host "    [OK] JDK 17 手动安装成功" -ForegroundColor Green }
+        } catch { throw "JDK 17 安装失败: $($_.Exception.Message)" }
     } else { Write-Host "    [OK] JDK 17 通过 winget/choco 安装" -ForegroundColor Green }
 }
 if (-not $foundJdk) { throw "无法安装 JDK 17，请手动下载 https://adoptium.net/temurin/releases/" }
@@ -35,7 +37,7 @@ $javaHome = $foundJdk.FullName; [System.Environment]::SetEnvironmentVariable("JA
 $sdkRoot = "${env:LOCALAPPData}\Android\Sdk"; New-Item -ItemType Directory -Force -Path $sdkRoot | Out-Null
 if (-not (Test-Path "$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat")) {
     $cmdlineZip = "$sdkRoot\commandlinetools.zip"
-    if (-not (Test-Path $cmdlineZip)) { Write-Host "  下载 commandlinetools-win.zip（约 150MB）…" -NoNewline; curl -L -f -o $cmdlineZip "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip" --progress-bar 2>&1 | Out-Null; Write-Host " 完成" -ForegroundColor Green } else { Write-Host "  [SKIP] commandlinetools.zip 已存在" -ForegroundColor Gray }
+    if (-not (Test-Path $cmdlineZip)) { Write-Host "  下载 commandlinetools-win.zip（约 150MB）…" -NoNewline; curl -L -k -f -o $cmdlineZip "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip" --progress-bar 2>&1 | Out-Null; Write-Host " 完成" -ForegroundColor Green } else { Write-Host "  [SKIP] commandlinetools.zip 已存在" -ForegroundColor Gray }
     Write-Host "  解压 …" -NoNewline; Expand-Archive -Path $cmdlineZip -DestinationPath "$sdkRoot\cmdline-tools" -Force
     $ext = Get-ChildItem "$sdkRoot\cmdline-tools" -Directory | Select-Object -First 1
     if ($ext -and $ext.Name -ne "latest") { Rename-Item -Path $ext.FullName -NewName "latest" -Force }
