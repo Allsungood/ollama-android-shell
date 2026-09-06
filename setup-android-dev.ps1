@@ -56,17 +56,27 @@ if ($foundJdk) {
             if ($foundJdk) { Write-Ok "choco 安装 JDK 17 成功" }
         }
     }
-    # 手动下载
+    # 手动下载（优先 curl，失败则用 Invoke-WebRequest）
     if (-not $foundJdk) {
         Write-Host "  手动下载安装 JDK 17 …" -ForegroundColor Yellow
         $jdkZip = "$env:TEMP\temurin-jdk17.zip"
         $jdkUrl = "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse?project=jdk"
         try {
             if ($curlCmd) {
-                curl -L -f -o $jdkZip $jdkUrl --progress-bar
+                # 先尝试 curl，加 --insecure 绕过证书吊销检查
+                curl -L -k -f -o $jdkZip $jdkUrl --progress-bar 2>&1 | Out-Null
+                if (-not (Test-Path $jdkZip)) { throw "curl failed" }
             } else {
-                Invoke-WebRequest -Uri $jdkUrl -OutFile $jdkZip -UseBasicParsing
+                throw "no curl"
             }
+        } catch {
+            Write-Host "  curl 失败，切换 PowerShell 下载 …" -ForegroundColor Yellow
+            try {
+                Invoke-WebRequest -Uri $jdkUrl -OutFile $jdkZip -UseBasicParsing
+            } catch {
+                Write-Err "JDK 17 下载失败：$($_.Exception.Message)`n请手动下载：https://adoptium.net/temurin/releases/"
+            }
+        }
             Write-Host "  下载完成，解压中 …" -NoNewline
             $jdkExtract = "$env:TEMP\temurin-jdk17"
             if (Test-Path $jdkExtract) { Remove-Item $jdkExtract -Recurse -Force }

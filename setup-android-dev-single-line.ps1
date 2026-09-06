@@ -17,13 +17,17 @@ if (-not $foundJdk) {
         Write-Host "  手动下载安装 JDK 17 …" -ForegroundColor Yellow
         $jdkZip = "$env:TEMP\temurin-jdk17.zip"
         try {
-            curl -L -f -o $jdkZip "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse?project=jdk" --progress-bar 2>&1 | Out-Null
-            $jdkExt = "$env:TEMP\temurin-jdk17-ext"; Expand-Archive -Path $jdkZip -DestinationPath $jdkExt -Force
-            $extJdk = Get-ChildItem "$jdkExt\*" -Directory | Select-Object -First 1
-            if ($extJdk) { $dest = Join-Path $jdkPath $extJdk.Name; if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }; Move-Item $extJdk.FullName $dest -Force; $foundJdk = Get-Item $dest }
-            Remove-Item $jdkZip -Force -ErrorAction SilentlyContinue; Remove-Item $jdkExt -Recurse -Force -ErrorAction SilentlyContinue
-            if ($foundJdk) { Write-Host "    [OK] JDK 17 手动安装成功" -ForegroundColor Green }
-        } catch { throw "JDK 17 安装失败: $($_.Exception.Message)" }
+            curl -L -k -f -o $jdkZip "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse?project=jdk" --progress-bar 2>&1 | Out-Null
+            if (-not (Test-Path $jdkZip)) { throw "curl failed" }
+        } catch {
+            Write-Host "  curl 失败，切换 PowerShell 下载 …" -ForegroundColor Yellow
+            try { Invoke-WebRequest -Uri "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse?project=jdk" -OutFile $jdkZip -UseBasicParsing } catch { throw "JDK 17 下载失败: $($_.Exception.Message)" }
+        }
+        $jdkExt = "$env:TEMP\temurin-jdk17-ext"; Expand-Archive -Path $jdkZip -DestinationPath $jdkExt -Force
+        $extJdk = Get-ChildItem "$jdkExt\*" -Directory | Select-Object -First 1
+        if ($extJdk) { $dest = Join-Path $jdkPath $extJdk.Name; if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }; Move-Item $extJdk.FullName $dest -Force; $foundJdk = Get-Item $dest }
+        Remove-Item $jdkZip -Force -ErrorAction SilentlyContinue; Remove-Item $jdkExt -Recurse -Force -ErrorAction SilentlyContinue
+        if ($foundJdk) { Write-Host "    [OK] JDK 17 手动安装成功" -ForegroundColor Green }
     } else { Write-Host "    [OK] JDK 17 通过 winget/choco 安装" -ForegroundColor Green }
 }
 if (-not $foundJdk) { throw "无法安装 JDK 17，请手动下载 https://adoptium.net/temurin/releases/" }
