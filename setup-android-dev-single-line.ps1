@@ -9,6 +9,8 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw "未找到 Node.js，请先安装 https://nodejs.org/" }
 Write-Host "`n>>> 开始配置 Ollama Deck Android 开发环境（预计 5-15 分钟）`n" -ForegroundColor Cyan;
 $jdkPath = "${env:ProgramFiles}\Eclipse Adoptium"; $foundJdk = Get-ChildItem "$jdkPath\jdk-17.0.*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1;
+if (-not $foundJdk) { $foundJdk = Get-ChildItem "C:\Program Files\Java\jdk-17.*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1 }
+if (-not $foundJdk) { $foundJdk = Get-ChildItem "C:\Program Files\Java\" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^jdk-' } | Sort-Object Name -Descending | Select-Object -First 1 }
 if (-not $foundJdk) {
     $winget = Get-Command winget -ErrorAction SilentlyContinue; $choco = Get-Command choco -ErrorAction SilentlyContinue;
     if ($winget) { winget install --id EclipseAdoptium.Temurin.17 --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null; $foundJdk = Get-ChildItem "$jdkPath\jdk-17.0.*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1 }
